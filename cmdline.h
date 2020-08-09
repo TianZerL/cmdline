@@ -36,10 +36,14 @@
 #include <typeinfo>
 #include <cstring>
 #include <algorithm>
-#ifdef __GNUC__
-#include <cxxabi.h>
-#endif // Only for GNU compiler
 #include <cstdlib>
+
+#define CHECK_TYPE(type) \
+template <> \
+inline std::string readable_typename<type>() \
+{ \
+  return #type; \
+} \
 
 namespace cmdline{
 
@@ -104,37 +108,29 @@ Target lexical_cast(const Source &arg)
   return lexical_cast_t<Target, Source, detail::is_same<Target, Source>::value>::cast(arg);
 }
 
-static inline std::string demangle(const std::string &name)
-{
-#ifdef _MSC_VER
-  return name;
-#elif defined(__GNUC__)
-  int status=0;
-  char *p=abi::__cxa_demangle(name.c_str(), 0, 0, &status);
-  std::string ret(p);
-  free(p);
-  return ret;
-#else
-#error unexpected complier, MSVC or GNU compiler required, please realize the demangle function before using
-#endif
-}
-
-template <class T>
+template <typename T>
 std::string readable_typename()
 {
-  return demangle(typeid(T).name());
-}
-
-template <class T>
-std::string default_value(T def)
-{
-  return detail::lexical_cast<std::string>(def);
+  return typeid(T).name();
 }
 
 template <>
 inline std::string readable_typename<std::string>()
 {
   return "string";
+}
+
+CHECK_TYPE(int)
+CHECK_TYPE(unsigned int)
+CHECK_TYPE(float)
+CHECK_TYPE(double)
+CHECK_TYPE(bool)
+CHECK_TYPE(char)
+
+template <typename T>
+std::string default_value(T def)
+{
+  return detail::lexical_cast<std::string>(def);
 }
 
 } // detail
@@ -650,7 +646,8 @@ private:
     option_without_value(const std::string &name,
                          char short_name,
                          const std::string &desc)
-      :nam(name), snam(short_name), desc(desc), has(false){
+      :nam(name), snam(short_name), has(false){
+        this->desc = format_description(desc);
     }
     ~option_without_value(){}
 
@@ -692,7 +689,15 @@ private:
     std::string short_description() const{
       return "--"+nam;
     }
-
+  protected:
+    std::string format_description(const std::string &desc){
+      std::size_t size = desc.size();
+      std::size_t width = 60;
+      std::string tmp="\n        ";
+      for(int i=0;i<size;i+=width)
+        tmp+=(desc.substr(i,width>size-i?size-i:width)+"\n        ");
+      return std::move(tmp);
+    }
   private:
     std::string nam;
     char snam;
@@ -766,10 +771,15 @@ private:
 
   protected:
     std::string full_description(const std::string &desc){
+      std::size_t size = desc.size();
+      std::size_t width = 60;
+      std::string tmp="\n        ";
+      for(int i=0;i<size;i+=width)
+        tmp+=(desc.substr(i,width>size-i?size-i:width)+"\n        ");
       return
-        desc+" ("+detail::readable_typename<T>()+
+        std::move(tmp+" ("+detail::readable_typename<T>()+
         (need?"":" [="+detail::default_value<T>(def)+"]")
-        +")";
+        +")\n");
     }
 
     virtual T read(const std::string &s)=0;
