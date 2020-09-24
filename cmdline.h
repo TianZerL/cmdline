@@ -696,7 +696,7 @@ private:
       std::string tmp="\n        ";
       for(int i=0;i<size;i+=width)
         tmp+=(desc.substr(i,width>size-i?size-i:width)+"\n        ");
-      return std::move(tmp);
+      return tmp;
     }
   private:
     std::string nam;
@@ -777,9 +777,9 @@ private:
       for(int i=0;i<size;i+=width)
         tmp+=(desc.substr(i,width>size-i?size-i:width)+"\n        ");
       return
-        std::move(tmp+" ("+detail::readable_typename<T>()+
+        tmp+" ("+detail::readable_typename<T>()+
         (need?"":" [="+detail::default_value<T>(def)+"]")
-        +")\n");
+        +")\n";
     }
 
     virtual T read(const std::string &s)=0;
